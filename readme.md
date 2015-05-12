@@ -30,6 +30,7 @@ Categories:
     Businesses
     Economy
     Education
+    Employment
     Environment
     Foreign policy
     Housing
