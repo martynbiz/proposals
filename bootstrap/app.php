@@ -52,4 +52,7 @@ $app->singleton(
 |
 */
 
+// require helpers.php file
+require '../app/helpers.php';
+
 return $app;

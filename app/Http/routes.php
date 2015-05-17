@@ -21,3 +21,5 @@ Route::controllers([
 ]);
 
 Route::resource('proposals', 'ProposalsController');
+
+Route::resource('votes', 'VotesController');

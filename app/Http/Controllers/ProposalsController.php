@@ -6,6 +6,8 @@ use App\Proposal;
 
 use App\Http\Requests\ProposalRequest;
 
+use App\Library\Utils;
+
 class ProposalsController extends Controller {
     
 	protected $proposal;
@@ -29,8 +31,11 @@ class ProposalsController extends Controller {
 	 */
 	public function index()
 	{
-		// will throw an exception if not found
-        $proposals = $this->proposal->all();
+        // will throw an exception if not found
+        $proposals = $this->proposal
+            ->with('votes')
+            ->with('user')
+            ->get();
         
         // render the view script, or json if ajax request
         return $this->render('proposals.index', compact('proposals'));
@@ -61,7 +66,7 @@ class ProposalsController extends Controller {
         $proposal = $auth->user()->proposals()->create( $request->all() );
         
         // redirect
-        return redirect()->to('/')->with([
+        return redirect()->to('proposals')->with([
             'flash_message' => 'A new proposal has been created',
         ]);
 	}
@@ -72,12 +77,22 @@ class ProposalsController extends Controller {
 	 * @param  int  $id
 	 * @return Response
 	 */
-	public function show($id)
+	public function show($id, AuthManager $auth, Utils $utils)
 	{
-		$proposal = $this->proposal->findOrFail($id);
+		$proposal = $this->proposal
+            ->with('votes')
+            ->findOrFail($id);
+        
+        // calculate percentage ration of votes
+        $yesCount = count($proposal->yes_votes);
+        $noCount = count($proposal->no_votes);
+        list($yesPerc, $noPerc) = $utils->calculateShare($yesCount, $noCount);
+        
+        // get the users vote for this proposal
+        $myVote = ($auth->user()) ? $proposal->votes()->where('user_id', '=', $auth->user()->id)->first() : null;
         
         // render the view script, or json if ajax request
-        return $this->render('proposals.show', compact('proposal'));
+        return $this->render('proposals.show', compact('proposal', 'yesPerc', 'noPerc', 'myVote'));
 	}
 
 	/**
@@ -106,8 +121,20 @@ class ProposalsController extends Controller {
 		// will throw an exception if not found
         $proposal = $auth->user()->proposals()->findOrFail($id);
         
+        // here we're gonna store the patch (and entire snapshot for now -- until patching works)
+        $version = $proposal->versions()->create( array(
+            'title' => $proposal->title,
+            'title_unified' => $this->getDiffUnified($proposal->title, $request->input('title')),
+            'content' => $proposal->content,
+            'content_unified' => $this->getDiffUnified($proposal->content, $request->input('content')),
+            'versioned_at' => $proposal->updated_at,
+        ) );
+        
         // update the proposal with the request params
         $proposal->update( $request->all() );
+        
+        // send notification to all voters
+        //...
         
         return redirect()->route('proposals.show', [$id])->with([
             'flash_message' => 'Proposal has been updated',
@@ -131,5 +158,33 @@ class ProposalsController extends Controller {
             'flash_message' => 'Proposal has been deleted',
         ]);
 	}
+    
+    /**
+     * 
+     */
+    protected function getDiffUnified($a, $b)
+    {
+        // // code to highlight the difference between strings
+        // $a_lines = explode("\n", "One\nTwo\nThree");
+        // $b_lines = explode("\n", "One\nOne\nTwo\nFour\nFive");
+
+        // $check_diff = new \MartynBiz\Diff\Diff( 'auto', array($a_lines, $b_lines) );
+        // // $renderer = new \MartynBiz\Diff\Renderer\Unified();
+        // $renderer = new \MartynBiz\Diff\Renderer\Inline();
+        
+        // echo $renderer->render($check_diff); exit;
+        
+        
+        
+        // code to highlight the difference between strings
+        $a_lines = explode("\n", $a);
+        $b_lines = explode("\n", $b);
+
+        $check_diff = new \MartynBiz\Diff\Diff( 'auto', array($a_lines, $b_lines) );
+        // $renderer = new \MartynBiz\Diff\Renderer\Unified();
+        $renderer = new \MartynBiz\Diff\Renderer\Inline();
+        
+        return $renderer->render($check_diff);
+    }
 
 }

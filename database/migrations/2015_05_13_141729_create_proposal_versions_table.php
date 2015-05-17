@@ -3,7 +3,7 @@
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
 
-class CreateProposalsTable extends Migration {
+class CreateProposalVersionsTable extends Migration {
 
 	/**
 	 * Run the migrations.
@@ -12,20 +12,22 @@ class CreateProposalsTable extends Migration {
 	 */
 	public function up()
 	{
-		Schema::create('proposals', function(Blueprint $table)
+		Schema::create('proposal_versions', function(Blueprint $table)
 		{
 			$table->increments('id');
 			
 			// fields
 			
-			$table->string('title');
-			$table->string('slug');
+			$table->text('title');
+			$table->string('title_unified');
 			$table->text('content');
-			$table->integer('user_id')
+			$table->string('content_unified');
+			$table->integer('proposal_id')
 				->unsigned()
 				->index();
 			
 			// timestamps
+			$table->date('versioned_at');
 			$table->timestamps();
 			$table->softDeletes();
 			
@@ -33,9 +35,9 @@ class CreateProposalsTable extends Migration {
 			// foreign keys
 			
 			// question_id foreign key relationship 
-			$table->foreign('user_id')
+			$table->foreign('proposal_id')
 				->references('id')
-				->on('users');
+				->on('proposals');
 		});
 	}
 
@@ -46,7 +48,7 @@ class CreateProposalsTable extends Migration {
 	 */
 	public function down()
 	{
-		Schema::drop('proposals');
+		Schema::drop('proposal_versions');
 	}
 
 }
